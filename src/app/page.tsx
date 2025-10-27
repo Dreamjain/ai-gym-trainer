@@ -51,7 +51,8 @@ export default function Home() {
         time: formatTime(),
       };
       setMessages((prev) => [...prev, botMessage]);
-    } catch (err) {
+    } catch (error) {
+      console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
         {

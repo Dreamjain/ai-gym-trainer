@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const responseText = result.response.text();
 
     return NextResponse.json({ reply: responseText });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error generating content:", error);
     return NextResponse.json(
       { reply: "⚠️ Something went wrong while generating your workout plan." },
