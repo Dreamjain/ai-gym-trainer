@@ -1,48 +1,63 @@
 # 🤖 AI Gym Trainer
 
-An AI-focused fitness web application built with **Next.js, React, TypeScript, Google Generative AI, Prisma, and Tailwind CSS**.
+A fitness-oriented **AI web application** built with Next.js, React, TypeScript, Tailwind CSS, generative AI, and Prisma.
+
+## 🖼️ Application Architecture
+
+```mermaid
+flowchart LR
+    U[User] --> UI[Next.js / React UI]
+    UI --> AI[Generative AI]
+    UI --> DB[(Prisma Database)]
+    AI --> UI
+    DB --> UI
+```
 
 ## ✨ Overview
 
-This project explores how generative AI can be combined with a modern web stack to build an interactive fitness-oriented application.
+The project explores how generative AI can be integrated into a modern web application to create an interactive fitness-focused experience. The frontend provides the user interface while server-side logic connects AI functionality and persistent data.
 
 ## 🧰 Tech Stack
 
-- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
-- **AI:** Google Generative AI
-- **Database:** Prisma / Prisma Client
-- **Markdown:** React Markdown
+![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Generative-blue)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)
 
 ## 🚀 Getting Started
-
-### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure environment variables
-
-Create a `.env` file and add the environment variables required by the application and database configuration.
-
-### 3. Start the development server
+Create a local `.env` file containing the database and AI configuration required by the application, then run:
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open `http://localhost:3000`.
 
-## 📜 Available Scripts
+## 📜 Scripts
 
 ```bash
-npm run dev      # Start development server
-npm run build    # Create production build
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run dev
+npm run build
+npm run start
+npm run lint
 ```
 
-## 🎯 Project Status
+## 🎯 What This Project Demonstrates
+
+- AI integration in a full-stack TypeScript application
+- Modern React / Next.js application structure
+- Database access with Prisma
+- Responsive UI development with Tailwind CSS
+- Environment-based configuration for external services
+
+## 📌 Status
 
 Active learning / development project.
 
