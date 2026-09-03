@@ -2,16 +2,11 @@
 
 A fitness-oriented **AI web application** built with Next.js, React, TypeScript, Tailwind CSS, generative AI, and Prisma.
 
-## 🖼️ Application Architecture
+## 🖼️ Project Visual
 
-```mermaid
-flowchart LR
-    U[User] --> UI[Next.js / React UI]
-    UI --> AI[Generative AI]
-    UI --> DB[(Prisma Database)]
-    AI --> UI
-    DB --> UI
-```
+The image below is an actual image asset included in the project and used by the application.
+
+![AI Gym Trainer project visual](public/jack2.png)
 
 ## ✨ Overview
 
