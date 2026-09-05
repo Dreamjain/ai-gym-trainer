@@ -1,37 +1,80 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+type Message = {
+  role: "user" | "bot";
+  content: string;
+  time: string;
+};
+
+const STORAGE_KEY = "ai-gym-trainer:chat-history";
+const MAX_STORED_MESSAGES = 100;
+
+function formatTime() {
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function loadMessages(): Message[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+
+    const parsed: unknown = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(
+      (item): item is Message =>
+        typeof item === "object" &&
+        item !== null &&
+        "role" in item &&
+        "content" in item &&
+        "time" in item &&
+        ((item as Message).role === "user" ||
+          (item as Message).role === "bot") &&
+        typeof (item as Message).content === "string" &&
+        typeof (item as Message).time === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
 export default function Home() {
-  const [messages, setMessages] = useState<
-    { role: string; content: string; time: string }[]
-  >([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-   // 🧠 Load previous chat from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("chatHistory");
-    if (saved) setMessages(JSON.parse(saved));
+    setMessages(loadMessages());
   }, []);
 
-  // 💾 Save chat history
   useEffect(() => {
-    localStorage.setItem("chatHistory", JSON.stringify(messages));
+    if (messages.length === 0) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(messages.slice(-MAX_STORED_MESSAGES))
+    );
   }, [messages]);
 
-  // ⏰ Format time nicely
-  const formatTime = () => {
-    const now = new Date();
-    return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
-  // 🚀 Send message
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    const trimmedInput = input.trim();
+    if (!trimmedInput || loading) return;
 
-    const userMessage = { role: "user", content: input, time: formatTime() };
+    const userMessage: Message = {
+      role: "user",
+      content: trimmedInput,
+      time: formatTime(),
+    };
+
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
@@ -40,24 +83,35 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: trimmedInput }),
       });
 
-      const data = await res.json();
+      const data: { reply?: unknown; error?: unknown } = await res.json();
 
-      const botMessage = {
-        role: "bot",
-        content: data.reply || "⚠️ Something went wrong.",
-        time: formatTime(),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
-      console.error("Chat error:", error);
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Request failed"
+        );
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           role: "bot",
-          content: "⚠️ Error connecting to the AI. Please try again.",
+          content:
+            typeof data.reply === "string"
+              ? data.reply
+              : "⚠️ The AI returned an invalid response.",
+          time: formatTime(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Chat request failed:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          content: "⚠️ Unable to reach the AI service. Please try again.",
           time: formatTime(),
         },
       ]);
@@ -68,57 +122,75 @@ export default function Home() {
 
   return (
     <main
-      className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-900 bg-opacity-90 relative"
+      className="relative flex min-h-screen flex-col items-center justify-center bg-gray-900 bg-opacity-90 p-6"
       style={{
-        backgroundImage: "url('/jack2.png')", // 🖼 your image from /public folder
+        backgroundImage: "url('/jack2.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* 🔲 Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/60"></div>
+      <div className="absolute inset-0 bg-black/60" aria-hidden="true" />
 
-      {/* Foreground content */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full">
-        <h1 className="text-4xl font-extrabold text-white mb-6 drop-shadow-lg">
+      <div className="relative z-10 flex w-full flex-col items-center justify-center">
+        <h1 className="mb-6 text-4xl font-extrabold text-white drop-shadow-lg">
           💪 AI Gym Trainer
         </h1>
 
-        {/* 💬 Chat window */}
-        <div className="w-full max-w-lg bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-4 space-y-3 overflow-y-auto h-[60vh]">
-          {messages.map((m, i) => (
+        <div
+          className="flex h-[60vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl bg-white/90 p-4 shadow-lg backdrop-blur-md"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
+          {messages.length === 0 && (
+            <p className="m-auto text-center text-gray-500">
+              Ask for a workout, exercise ideas, or fitness guidance.
+            </p>
+          )}
+
+          {messages.map((message, index) => (
             <div
-              key={i}
-              className={`p-3 rounded-xl max-w-[80%] ${
-                m.role === "user"
-                  ? "bg-blue-600 text-white self-end ml-auto"
+              key={`${message.time}-${index}`}
+              className={`max-w-[80%] rounded-xl p-3 ${
+                message.role === "user"
+                  ? "ml-auto bg-blue-600 text-white"
                   : "bg-gray-200 text-gray-900"
               }`}
             >
-              <ReactMarkdown>{m.content}</ReactMarkdown>
-              <p className="text-xs mt-1 opacity-70 text-right">{m.time}</p>
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <p className="mt-1 text-right text-xs opacity-70">
+                {message.time}
+              </p>
             </div>
           ))}
-          {loading && <p className="text-gray-500 italic">🤖 Typing...</p>}
+
+          {loading && (
+            <p className="text-gray-500 italic" role="status">
+              🤖 Thinking...
+            </p>
+          )}
         </div>
 
-        {/* ✍️ Input box */}
-        <div className="flex w-full max-w-lg mt-4">
+        <div className="mt-4 flex w-full max-w-lg">
           <input
             type="text"
-            placeholder="supp jack-ass, seems u finally leave the bed"
+            placeholder="Ask your AI fitness trainer..."
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 p-3 rounded-l-xl border border-gray-400 focus:outline-none"
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            maxLength={1000}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void sendMessage();
+            }}
+            aria-label="Fitness question"
+            className="flex-1 rounded-l-xl border border-gray-400 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={sendMessage}
-            className="bg-blue-700 hover:bg-blue-800 text-white px-5 rounded-r-xl font-semibold"
-            disabled={loading}
+            type="button"
+            onClick={() => void sendMessage()}
+            disabled={loading || !input.trim()}
+            className="rounded-r-xl bg-blue-700 px-5 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Send
+            {loading ? "Sending..." : "Send"}
           </button>
         </div>
       </div>
