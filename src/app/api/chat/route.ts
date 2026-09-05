@@ -1,51 +1,61 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// ✅ Initialize Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const MAX_MESSAGE_LENGTH = 1000;
 
 export async function POST(req: Request) {
   try {
-    const { message } = await req.json();
+    if (!genAI) {
+      return NextResponse.json(
+        { error: "AI service is not configured." },
+        { status: 503 }
+      );
+    }
 
-    // ✅ Use Gemini 2.5 Flash model (latest)
+    const body: unknown = await req.json();
+    const message =
+      typeof body === "object" && body !== null && "message" in body
+        ? (body as { message?: unknown }).message
+        : undefined;
+
+    if (typeof message !== "string" || !message.trim()) {
+      return NextResponse.json(
+        { error: "A non-empty message is required." },
+        { status: 400 }
+      );
+    }
+
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.` },
+        { status: 400 }
+      );
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    // ✅ Generate structured, markdown-friendly workout plans
     const result = await model.generateContent(`
-      You are an AI fitness trainer. 
-      Always reply in a well-formatted Markdown structure with emojis and clear headings.
+You are an AI fitness trainer.
 
-      When a user asks for a workout plan, respond like this:
+Guidelines:
+- Give practical, beginner-friendly fitness guidance.
+- Use well-formatted Markdown with clear headings and concise bullet points.
+- For workout plans, include sets/reps or duration and rest guidance where appropriate.
+- Encourage proper form, gradual progression, warm-ups, and recovery.
+- Do not diagnose injuries or medical conditions. Recommend consulting a qualified professional for pain, injury, or medical concerns.
+- End workout plans with a short motivational line.
 
-      🗓️ **Day 1: Chest & Triceps**
-      - Bench Press – 4 sets of 10 reps  
-      - Push Ups – 3 sets of 15 reps  
-      - Tricep Dips – 3 sets of 12 reps  
-
-      🗓️ **Day 2: Back & Biceps**
-      - Pull Ups – 4 sets  
-      - Dumbbell Rows – 3 sets of 10 reps  
-      - Bicep Curls – 3 sets of 12 reps  
-
-      🗓️ **Day 3: Legs & Shoulders**
-      - Squats – 4 sets of 10 reps  
-      - Lunges – 3 sets of 12 reps  
-      - Shoulder Press – 3 sets of 10 reps  
-
-      Include motivational closing lines like: 
-      "_Stay consistent and train smart!_ 💪🔥"
-
-      User request: ${message}
+User request:
+${trimmedMessage}
     `);
 
-    const responseText = result.response.text();
-
-    return NextResponse.json({ reply: responseText });
+    return NextResponse.json({ reply: result.response.text() });
   } catch (error: unknown) {
-    console.error("❌ Error generating content:", error);
+    console.error("Error generating fitness guidance:", error);
     return NextResponse.json(
-      { reply: "⚠️ Something went wrong while generating your workout plan." },
+      { error: "Unable to generate a response right now. Please try again." },
       { status: 500 }
     );
   }
